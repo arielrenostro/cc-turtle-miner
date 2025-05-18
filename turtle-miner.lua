@@ -107,7 +107,8 @@ miningPosition = {
     direction = {
         x = "forward",
         z = "right"
-    }
+    },
+    finished = false
 }
 miningLimits = {
     x = {
@@ -212,85 +213,69 @@ function face(direction)
     end
 end
 
-function goTo(destination)
-    print("Going to X:", destination.x, "Y:", destination.y, "Z:", destination.z)
+function goTo(destination, sequence)
+    print("Going to X:", destination.x, "Y:", destination.y, "Z:", destination.z, "|", sequence[0], sequence[1], sequence[2])
 
-    while position.x ~= destination.x or position.z ~= destination.z do
-        if position.x ~= destination.x then
-            if position.x < destination.x then
-                face("forward")
-            elseif position.x > destination.x then
-                face("back")
+    i = 0
+    repeat
+        if sequence[i] == 'x':
+            while position.x ~= destination.x do
+                if position.x < destination.x then
+                    face("forward")
+                elseif position.x > destination.x then
+                    face("back")
+                end
+                if not move("forward") then
+                    if not move("up") then
+                        errorMessage = "Stuck!"
+                        state = "error"
+                        return false
+                    end
+                end
             end
-            if not move("forward") then
-                if not move("up") then
+        elseif sequence[i] == 'y':
+            while position.y ~= destination.y do
+                local ok = nil
+                if position.y < destination.y then
+                    ok = move("up")
+                else
+                    ok = move("down")
+                end
+                if not ok then
                     errorMessage = "Stuck!"
                     state = "error"
                     return false
                 end
             end
-        end
-
-        if position.z ~= destination.z then
-            if position.z < destination.z then
-                face("right")
-            elseif position.z > destination.z then
-                face("left")
-            end
-            if not move("forward") then
-                if not move("up") then
-                    errorMessage = "Stuck!"
-                    state = "error"
-                    return false
+        elseif sequence[i] == 'z':
+            while position.z ~= destination.z do
+                if position.z < destination.z then
+                    face("right")
+                elseif position.z > destination.z then
+                    face("left")
+                end
+                if not move("forward") then
+                    if not move("up") then
+                        errorMessage = "Stuck!"
+                        state = "error"
+                        return false
+                    end
                 end
             end
         end
-    end
-
-    if destination.y then
-        while position.y ~= destination.y do
-            if not move("down") then
-                break
-            end
-        end
-    end
-
+    until sequence[i]
     return true
 end 
 
 function handleRefueling()
     print("Refueling!")
 
-    while position.y < fuelChest.y do
-        move("up")
-    end
-    move("up") -- send one block above
-
-    if position.z < fuelChest.z then
-        face("right")
-    elseif position.z > fuelChest.z then
-        face("left")
-    end
-
-    while position.z ~= fuelChest.z do
-        if not move("forward") then
-            errorMessage = "Stuck!"
-            state = "error"
-        end
-    end
-
-    if position.x < fuelChest.x then
-        face("forward")
-    elseif position.x > fuelChest.x then
-        face("back")
-    end
-
-    while position.x ~= fuelChest.x do
-        if not move("forward") then
-            errorMessage = "Stuck!"
-            state = "error"
-        end
-    end
+    local tmpPosition = {
+        x = fuelChest.x,
+        y = fuelChest.y + 1, -- 1 block above chest
+        z = fuelChest.z
+    }
+    goTo(tmpPosition, {"y", "x", "z"})
 
     print("Getting fuel from bottom")
     turtle.select(fuelSlot)
@@ -308,6 +293,19 @@ function handleRefueling()
     end
 end
 
+function handleStoreItems() {
+    print("Storing items!")
+    -- TODO
+
+    if miningPosition.finished then
+        print("Finished!")
+        for i = 0; 5 do
+            move("up")
+        end
+        state = "finished"
+    end
+}
+
 function handleMoving()
     print("Moving!")
 
@@ -320,12 +318,12 @@ function handleMoving()
         tmpPosition.y = miningLimits.y.s
     end
 
-    if not goTo(tmpPosition) then
+    if not goTo(tmpPosition, {"x", "z", "y"}) then
         return
     end
 
     if miningPosition then
-        if not goTo(miningPosition) then
+        if not goTo(miningPosition, {"x", "z", "y"}) then
             return
         end
     end
@@ -335,18 +333,40 @@ end
 
 function handleMining()
     print("Mining!")
+    sleep(1)
+
     print("Fuel Level:", turtle.getFuelLevel())
     if turtle.getFuelLevel() < fuelMin then
         state = "refueling"
         return
     end
-    sleep(1)
 
     -- TODO: check if it's inside the mining area. If not, set state moving
-    -- TODO: check inventory full
 
+    if miningPosition.direction.x == "forward" then
+        face("forward")
+    else
+        face("back")
+    end
+
+    if isInventoryFull() {
+        state = "storeItems"
+        return
+    }
     turtle.dig()
+
+    if isInventoryFull() {
+        state = "storeItems"
+        return
+    }
     turtle.digBottom()
+
+    exists, block = turtle.inspectDown()
+    if exists and block.name == 'minecraft:bedrock' then
+        miningPosition.finished = true
+        state = "storeItems"
+        return
+    end
 
     local limitXReached = (miningPosition.direction.x == "forward" and position.x == miningLimits.x.e)
                     or (miningPosition.direction.x == "back" and position.x == miningLimits.x.s)
@@ -356,7 +376,12 @@ function handleMining()
         limitZReached = (miningPosition.direction.z == "right" and position.z == miningLimits.z.e)
                     or (miningPosition.direction.z == "left" and position.z == miningLimits.z.s)
         if limitZReached then
-            move("down")
+            if not move("down") then
+                errorMessage = "Stuck!"
+                state = "error"
+                return
+            end
+
             if miningPosition.direction.z == "right" then
                 miningPosition.direction.z = "left"
             else
@@ -368,13 +393,15 @@ function handleMining()
             else
                 miningPosition.direction.x = "forward"
             end
-        else -- didn't reach the side limit
+
+        else -- not limit z
             if miningPosition.direction.z == "right" then
                 turnRight()
             else
                 turnLeft()
             end
-            turtle.dig()
+            turtle.dig() -- TODO: handle error
+
             if move("forward") then
                 if miningPosition.direction.z == "right" then
                     turnRight()
@@ -385,10 +412,11 @@ function handleMining()
                     miningPosition.direction.x = "back"
                 else
                     miningPosition.direction.x = "forward"
-                end  
+                end
             else
                 errorMessage = "Stuck!"
                 state = "error"
+                return
             end
         end
     else
@@ -419,8 +447,12 @@ local function main()
     state = "mining"
 
     while true do
-        if state == "refueling" then
+        if state == "finished" then
+            sleep(1)
+        elseif state == "refueling" then
             handleRefueling()
+        elseif state == "storeItems" then
+            handleStoreItems()
         elseif state == "moving" then
             handleMoving()
         elseif state == "mining" then
