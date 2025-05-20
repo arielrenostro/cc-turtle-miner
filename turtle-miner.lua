@@ -98,12 +98,12 @@ position = {
     x = 10, 
     y = 2, 
     z = 0, 
-    facing = "forward"
+    facing = nil
 }
 miningPosition = {
-    x = 10,
-    y = 0,
-    z = 0,
+    x = 71,
+    y = 70,
+    z = 119,
     direction = {
         x = "forward",
         z = "right"
@@ -112,24 +112,27 @@ miningPosition = {
 }
 miningLimits = {
     x = {
-        s = 10,
-        e = 100
+        s = 71,
+        e = 74
     },
-    y = nil,
+    y = {
+        s = 70,
+        e = 0
+    },
     z = {
-        s = 0,
-        e = 100
+        s = 119,
+        e = 123
     }
 }
 fuelChest = {
-    x = -2,
-    y = 0,
-    z = 0
+    x = 54,
+    y = 71,
+    z = 119
 }
 dropChest = {
-    x = -2,
-    y = 0,
-    z = 3
+    x = 54,
+    y = 71,
+    z = 122
 }
 
 fuelSlot = 1
@@ -138,7 +141,7 @@ state = "mining"
 
 function move(direction)
     print("Moving:", direction)
-    sleep(2)
+
     local ok, message = nil
     
     if direction == "forward" then
@@ -183,7 +186,7 @@ function move(direction)
     end
 
     print("X:", position.x, "Y:", position.y, "Z:", position.z)
-    if ok then
+    if not ok then
         print("Didn't moved")
     end
 
@@ -204,9 +207,24 @@ function turnLeft()
     end
 end
 
-function face(direction)
-    print("Facing request:", direction)
+function turnRight()
+    turtle.turnRight()
 
+    if position.facing == "forward" then
+        position.facing = "right"
+    elseif position.facing == "left" then
+        position.facing = "forward"
+    elseif position.facing == "back" then
+        position.facing = "left"
+    elseif position.facing == "right" then
+        position.facing = "back"
+    end
+end
+
+function face(direction)
+    if position.facing ~= direction then
+        print("Facing request:", direction)
+    end
     while position.facing ~= direction do
         turnLeft()
         print("Facing:", position.facing)
@@ -214,11 +232,11 @@ function face(direction)
 end
 
 function goTo(destination, sequence)
-    print("Going to X:", destination.x, "Y:", destination.y, "Z:", destination.z, "|", sequence[0], sequence[1], sequence[2])
+    print("Going to X:", destination.x, "Y:", destination.y, "Z:", destination.z, "|", sequence[1], sequence[2], sequence[3])
 
-    i = 0
+    i = 1
     repeat
-        if sequence[i] == 'x':
+        if sequence[i] == 'x' then
             while position.x ~= destination.x do
                 if position.x < destination.x then
                     face("forward")
@@ -233,7 +251,7 @@ function goTo(destination, sequence)
                     end
                 end
             end
-        elseif sequence[i] == 'y':
+        elseif sequence[i] == 'y' then
             while position.y ~= destination.y do
                 local ok = nil
                 if position.y < destination.y then
@@ -247,7 +265,7 @@ function goTo(destination, sequence)
                     return false
                 end
             end
-        elseif sequence[i] == 'z':
+        elseif sequence[i] == 'z' then
             while position.z ~= destination.z do
                 if position.z < destination.z then
                     face("right")
@@ -263,7 +281,8 @@ function goTo(destination, sequence)
                 end
             end
         end
-    until sequence[i]
+        i = i + 1
+    until sequence[i] == nil
     return true
 end 
 
@@ -275,7 +294,9 @@ function handleRefueling()
         y = fuelChest.y + 1, -- 1 block above chest
         z = fuelChest.z
     }
-    goTo(tmpPosition, {"y", "x", "z"})
+    if not goTo(tmpPosition, {"y", "x", "z"}) then
+        return
+    end
 
     print("Getting fuel from bottom")
     turtle.select(fuelSlot)
@@ -293,18 +314,65 @@ function handleRefueling()
     end
 end
 
-function handleStoreItems() {
+function handleStoreItems()
     print("Storing items!")
-    -- TODO
+
+    local tmpPosition = {
+        x = fuelChest.x,
+        y = fuelChest.y + 1, -- 1 block above chest
+        z = fuelChest.z
+    }
+    if not goTo(tmpPosition, {"y", "x", "z"}) then
+        return
+    end
+
+    for i = 1, 16 do
+        local detail = turtle.getItemDetail(i)
+        if detail ~= nil and detail.name == "minecraft:coal" then
+            turtle.select(i)
+            ok, _ = turtle.dropDown()
+            if not ok then
+                break
+            end
+        end
+    end
+
+    local tmpPosition = {
+        x = dropChest.x,
+        y = dropChest.y + 1, -- 1 block above chest
+        z = dropChest.z
+    }
+    if not goTo(tmpPosition, {"y", "x", "z"}) then
+        return
+    end
+
+    local detail = turtle.getItemDetail(1)
+    if detail ~= nil and detail.name ~= "minecraft:coal" then
+        turtle.select(1)
+        turtle.dropDown()
+    end
+
+    for i = 2, 16 do
+        local detail = turtle.getItemDetail(i)
+        if detail ~= nil then
+            turtle.select(i)
+            ok, _ = turtle.dropDown()
+            if not ok then
+                break
+            end
+        end
+    end
 
     if miningPosition.finished then
         print("Finished!")
-        for i = 0; 5 do
+        for i = 0, 5 do
             move("up")
         end
         state = "finished"
+    else
+        state = "moving"
     end
-}
+end
 
 function handleMoving()
     print("Moving!")
@@ -333,7 +401,6 @@ end
 
 function handleMining()
     print("Mining!")
-    sleep(1)
 
     print("Fuel Level:", turtle.getFuelLevel())
     if turtle.getFuelLevel() < fuelMin then
@@ -349,17 +416,17 @@ function handleMining()
         face("back")
     end
 
-    if isInventoryFull() {
+    if isInventoryFull() then
         state = "storeItems"
         return
-    }
+    end
     turtle.dig()
 
-    if isInventoryFull() {
+    if isInventoryFull() then
         state = "storeItems"
         return
-    }
-    turtle.digBottom()
+    end
+    turtle.digDown()
 
     exists, block = turtle.inspectDown()
     if exists and block.name == 'minecraft:bedrock' then
@@ -376,6 +443,12 @@ function handleMining()
         limitZReached = (miningPosition.direction.z == "right" and position.z == miningLimits.z.e)
                     or (miningPosition.direction.z == "left" and position.z == miningLimits.z.s)
         if limitZReached then
+            if miningLimits.y and miningLimits.y.e == position.y then
+                miningPosition.finished = true
+                state = "storeItems"
+                return
+            end
+
             if not move("down") then
                 errorMessage = "Stuck!"
                 state = "error"
@@ -396,17 +469,33 @@ function handleMining()
 
         else -- not limit z
             if miningPosition.direction.z == "right" then
-                turnRight()
+                if miningPosition.direction.x == "forward" then
+                    turnRight()
+                else
+                    turnLeft()
+                end
             else
-                turnLeft()
+                if miningPosition.direction.x == "forward" then
+                    turnLeft()
+                else
+                    turnRight()
+                end
             end
             turtle.dig() -- TODO: handle error
 
             if move("forward") then
                 if miningPosition.direction.z == "right" then
-                    turnRight()
+                    if miningPosition.direction.x == "forward" then
+                        turnRight()
+                    else
+                        turnLeft()
+                    end
                 else
-                    turnLeft()
+                    if miningPosition.direction.x == "forward" then
+                        turnLeft()
+                    else
+                        turnRight()
+                    end
                 end
                  if miningPosition.direction.x == "forward" then
                     miningPosition.direction.x = "back"
@@ -432,19 +521,77 @@ function handleMining()
 end
 
 function handleError()
--- TODO: send error to controler
-    print(errorMessage)
-    sleep(1)
+    -- TODO: send error to controler
+    print("ERROR:", errorMessage)
+    sleep(10)
 end
 
 function detectFacing()
--- TODO: tries to move any direction to find facing direction
-    return position.facing
+    if position.facing then
+        return position.facing
+    end
+
+    x, y, z = gps.locate()
+    if x == nil then
+        errorMessage = "GPS not found"
+        state = "error"
+        return nil
+    end
+
+    direction = nil
+    for i = 0, 2 do
+        ok, _ = turtle.forward()
+        if ok then
+            direction = "forward"
+            break
+        end
+
+        ok, _ = turtle.back()
+        if ok then
+            direction = "back"
+            break
+        end
+
+        turtle.up()
+    end
+
+    if direction == "forward" then
+        gx, gy, gz = gps.locate()
+        if gx > x then
+            return "forward"
+        elseif gx < x then
+            return "back"
+        elseif gz > z then
+            return "right"
+        end
+        return "left"
+    end
+    
+    if direction == "back" then
+        gx, gy, gz = gps.locate()
+        if gx < x then
+            return "forward"
+        elseif gx > x then
+            return "back"
+        elseif gz < z then
+            return "right"
+        end
+        return "left"
+    end
+
+    errorMessage = "Stuck! Could not found facing!"
+    state = "error"
+    return nil
 end 
 
 local function main()
     position.facing = detectFacing()
-    state = "mining"
+    position.x, position.y, position.z = gps.locate()
+    state = "moving"
+
+    print("Starting Turtle Miner!")
+    print("X:", position.x, "Y:", position.y, "Z:", position.z, "Facing:", position.facing)
+    sleep(2)
 
     while true do
         if state == "finished" then
