@@ -46,6 +46,15 @@ function setError(message)
     errorMessage = message
 end
 
+function isInsideMiningSpot()
+    local miningSpot = state.get("mining.spot")
+
+    return navigation.x <= miningSpot.x.max
+        and navigation.x >= miningSpot.x.min
+        and navigation.z <= miningSpot.z.max
+        and navigation.z >= miningSpot.z.min
+end
+
 function isInventoryFull()
     for i = 1, 16 do
         if turtle.getItemCount(i) == 0 then
@@ -158,15 +167,17 @@ end
 function handleMoving()
     logger.info("Moving!")
 
-    local position = state.get("mining.spot")
-    position.x = position.x.min
-    position.z = position.z.min
-    position.y = position.y.max
-    if not navigation.goTo(position, {"x", "z", "y"}) then
-        return
+    if not isInsideMiningSpot() then
+        local position = state.get("mining.spot")
+        position.x = position.x.min
+        position.z = position.z.min
+        position.y = position.y.max
+        if not navigation.goTo(position, {"x", "z", "y"}) then
+            return
+        end
     end
 
-    position = state.get("mining.position")
+    local position = state.get("mining.position")
     if position then
         if not navigation.goTo(position, {"x", "z", "y"}) then
             return
@@ -185,10 +196,7 @@ function handleMining()
     local miningPosition = state.get("mining.position")
     local miningDirection = state.get("mining.position.direction")
 
-    if navigation.x > miningSpot.x.max
-        or navigation.x < miningSpot.x.min
-        or navigation.z > miningSpot.z.max
-        or navigation.z < miningSpot.z.min then
+    if not isInsideMiningSpot() then
         logger.warn("Trying to mine on a invalid position!")
         logger.warn("X:", navigation.x, "Y:", navigation.y, "Z:", navigation.z)
         logger.warn("X:", miningSpot.x.min, miningSpot.x.max, "Y:", miningSpot.y.min, miningSpot.y.max, "Z:", miningSpot.z.min, miningSpot.z.max)
