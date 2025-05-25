@@ -1,0 +1,40 @@
+{
+  [ "tstate.mining.finished" ] = false,
+  [ "tstate.fuel.min" ] = 200,
+  [ "tstate.mining.position.direction" ] = {
+    x = "forward",
+    z = "right",
+  },
+  [ "tstate.logger.loglevel" ] = "debug",
+  [ "tstate.teste" ] = 2,
+  [ "tstate.mining.spot" ] = {
+    y = {
+      min = -64,
+      max = 70,
+    },
+    x = {
+      min = 70,
+      max = 74,
+    },
+    z = {
+      min = 120,
+      max = 124,
+    },
+  },
+  [ "tstate.chests.fuel" ] = {
+    y = 71,
+    x = 54,
+    z = 119,
+  },
+  [ "tstate.chests.items" ] = {
+    y = 71,
+    x = 54,
+    z = 122,
+  },
+  [ "tstate.fuel.slot" ] = 1,
+  [ "tstate.mining.position" ] = {
+    y = 32,
+    x = 74,
+    z = 120,
+  },
+}
