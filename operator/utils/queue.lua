@@ -4,14 +4,14 @@ Queue = {
   __rear = nil,
 }
 
-function Queue:new(o)
-  o = o or {}
-  setmetatable(o, self)
+function Queue:new()
+  new = {}
+  setmetatable(new, self)
   self.__index = self
-  self.__front = nil
-  self.__rear = nil
-  self.__size = 0
-  return o
+  new.__front = nil
+  new.__rear = nil
+  new.__size = 0
+  return new
 end
 
 function Queue:size()

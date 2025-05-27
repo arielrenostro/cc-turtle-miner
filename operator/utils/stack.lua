@@ -3,13 +3,13 @@ Stack = {
   __array = {},
 }
 
-function Stack:new(o)
-  o = o or {}
-  setmetatable(o, self)
+function Stack:new()
+  new = {}
+  setmetatable(new, self)
   self.__index = self
-  self.__array = {}
-  self.__size = 0
-  return o
+  new.__array = {}
+  new.__size = 0
+  return new
 end
 
 function Stack:size()

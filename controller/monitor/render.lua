@@ -1,75 +1,80 @@
-local R = {
-    __monitor = nil,
-    __matrix = {},
-    __x = 0,
-    __y = 0,
-}
-
 local DEFAULT_NODE = {
     bc = colors.black,
     tc = colors.white,
     value = " ",
 }
 
-function R.setMonitor(monitor)
-    R.__monitor = monitor
+Render = {}
+
+function Render:new(o)
+    o = o or {}
+    if o.redirect == nil then
+        return "\"redirect\" not defined"
+    end
+    if o.layer == nil then
+        return "\"layer\" not defined"
+    end
+
+    render = {}
+    setmetatable(render, self)
+    self.__index = self
+    render:__setDefault(o)
+    return render
 end
 
-function R.scrollX(x)
-    R.__x = R.__x + x
+function Render:__setDefault(o)
+    self.__redirect = o.redirect
+    self.__layer = o.layer
+    self.__offset = { x = 0, y = 0 }
 end
 
-function R.scrollY(y)
-    R.__y = R.__y + y
+function Render:scrollX(x)
+    self.__offset.x = self.__offset.x + x
 end
 
-function R.setScroll(x, y)
-    R.__x = x
-    R.__y = y
+function Render:scrollY(y)
+    self.__offset.y = self.__offset.y + y
 end
 
-function R.setTextChar(x, y, bc, tc, value)
-    R.__matrix[x] = R.__matrix[x] or {}
-    R.__matrix[x][y] = R.__matrix[x][y] or {}
-    R.__matrix[x][y].bc = bc
-    R.__matrix[x][y].tc = tc
-    R.__matrix[x][y].value = value
+function Render:setScroll(x, y)
+    self.__offset.x = x
+    self.__offset.y = y
 end
 
-function R.render()
+function Render:render()
+    self.__layer:processChanges()
+
     local lastBc = nil
     local lastTc = nil
     local node = nil
-    local line = nil
     
-    local mx, my = monitor.getSize()
+    local mx, my = self.__redirect.getSize()
     for y = 1, my do
         for x = 1, mx do
-            line = R.__matrix[x + R.__x]
-            if line ~= nil then 
-                node = line[y + R.__y]
-            else
-                node = nil
-            end
-
-            if node == nil then
-                node = DEFAULT_NODE
-            end
+            node = self.__layer:get(
+                x - self.__offset.x,
+                y - self.__offset.y
+            ) or DEFAULT_NODE
 
             if lastBc ~= node.bc then
-                monitor.setBackgroundColor(node.bc)
+                self.__redirect.setBackgroundColor(node.bc)
                 lastBc = node.bc
             end
             if lastTc ~= node.tc then
-                monitor.setTextColor(node.tc)
+                self.__redirect.setTextColor(node.tc)
                 lastTc = node.tc
             end
-            monitor.setCursorPos(x, y)
-            monitor.write(node.value)
+            self.__redirect.setCursorPos(x, y)
+            self.__redirect.write(node.value)
         end
     end
 end
 
-R.setMonitor(peripheral.find("monitor"))
+function Render:onClick(x, y)
+    self.__layer:onClick(
+        x - self.__offset.x,
+        y - self.__offset.y
+    )
+end
 
-return R
+return Render

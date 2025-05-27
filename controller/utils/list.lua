@@ -1,12 +1,15 @@
-List = {}
+List = {
+    __size = 0,
+    __array = {},
+}
 
 function List:new()
-    new = {}
-    setmetatable(new, self)
+    list = {}
+    setmetatable(list, self)
     self.__index = self
-    new.__array = {}
-    new.__size = 0
-    return o
+    list.__array = {}
+    list.__size = 0
+    return list
 end
 
 function List:size()
@@ -14,8 +17,8 @@ function List:size()
 end
 
 function List:add(elem)
-    self.__array[self.__size] = elem
     self.__size = self.__size + 1
+    self.__array[self.__size] = elem
 end
 
 function List:get(idx)
