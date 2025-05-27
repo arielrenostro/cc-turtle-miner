@@ -17,6 +17,11 @@ An Advanced Turtle with a Pickaxe that executes the mining tasks from the Contro
 
 
 ## Release notes
+### v0.0.4
+- Render API for screen projections: Layer, Overlay Layer, Components and Render controller.
+
+[![ComputerCraft - Mining Turtle V0.0.4](https://img.youtube.com/vi/zgTrDD13jsw/0.jpg)](http://www.youtube.com/watch?v=zgTrDD13jsw "ComputerCraft - Mining Turtle V0.0.4")
+
 ### v0.0.3
 - Starting Controller tests;
 - Codes from Operator and Controller splited;
